@@ -1,9 +1,11 @@
-# python libraries
-import matplotlib.pyplot as plt
-from sklearn import datasets, svm, metrics
-
 # local libraries
 import loader
+from network import nNetwork
 
-trainX, shape = loader.load_idx("./data/train-images-idx3-ubyte.gz")
-print("shape:\t{shape}")
+trainX, trainy, train_size, testX, testy, test_size = loader.load_data()
+
+clf = nNetwork(3)
+clf.fit(trainX, trainY)
+predictions = clf.predict(testX)
+
+print("")
