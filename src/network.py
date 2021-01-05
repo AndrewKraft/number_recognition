@@ -5,6 +5,10 @@ from sklearn import svm, stats
 def sigmoid(z):
 	return 1 / (1 + np.exp(-z))
 
+def sigmoid_prime(z):
+	sig = sigmoid(z)
+	return sig * (1 - sig)
+
 def softmax(inputs):
 	denom = 0
 	for z in inputs:
@@ -45,14 +49,23 @@ class nNetwork():
 			if i == self.depth - 1:
 				output_size = l
 
-			tmp = rng.random((input_size, output_size))
+			tmp = rng.random((output_size, input_size))
 			self.weights.append(tmp)
 
-		# now that we have the initial weight matrices all generated randomly, we can begin feeding in data
+		# now that we have the initial weight matrices all generated randomly, we can begin training
 		for index in range(N):
-			tmp = np.c_[ X[index], 1]
-			for i in range(depth):
-				tmp = self.weights[i] @ tmp
+			dzdw = [ X[index] ]
+			for i in range(self.depth):
+
+				# calculate values at next layer and add to array containing dz/dw
+				tmp = sigmoid(self.weights[i][:,:-1] @ dzdw[i] + self.weights[i][:,-1])
+				dzdw.append(tmp)
+			
+			# backpropagation time
+			for i in reversed(range(self.depth)):
+				
+
+
 				
 	
 		
