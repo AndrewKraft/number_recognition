@@ -1,72 +1,87 @@
 # python libraries
-import matplotlib.pyplot as plt, numpy as np
-from sklearn import svm, stats
+import matplotlib.pyplot as plt, numpy as np, random
 
-def sigmoid(z):
+
+def sigmoid(z): # calculate sigmoid function
 	return 1 / (1 + np.exp(-z))
 
-def sigmoid_prime(z):
-	sig = sigmoid(z)
-	return sig * (1 - sig)
+def sigmoid_prime(z): # calculates derivative of sigmoid function with respect to z
+	sigz = sigmoid(z)
+	return sigz * (1 - sigz)
 
-def softmax(inputs):
-	denom = 0
-	for z in inputs:
-		denom += np.exp(z)
-	
-	outputs = np.array(inputs.shape)
-	for i in range(inputs.size):
-		outputs[i] = np.exp(inputs[i]) / denom
+class Network():
 
-	return outputs
+	def __init__(self, widths):
 
-class nNetwork():
+		self.depth = len(widths) # number of layers (including the input layer)
+		self.widths = widths # number of nodes at each layer with widths[0] representing the input layer and widths[-1] the output layer
+		self.biases = [ np.random.randn(y, 1) for y in widths[1:] ]
+		self.weights = [ np.random.randn(y, x) for x,y in zip(widths[:-1], widths[1:]) ]
 
-	def __init__(lr, depth, width):
-		self.lr = lr # learning rate
-		self.depth = depth # number of layers excluding input layer
-		self.width = width # number of nodes at each layer except input and output
+	def feedforward(self, a):
+		for w, b in zip(self.weights, self.biases):
+			a = sigmoid(w @ a + b)
+		return a
 
-	def fit(X, y):
+	def predict(self, X):
+		# takes input vector x of size N, returns an output vector of size (N,) containing the predicted labels for each sample
+		N = len(X)
+		output = np.empty(N)
+		for i in range(N):
+			output[i] = np.argmax(self.feedforward(X[i]))
+		return output
+
+	def fit(self, X, y, nepoch=32, lr=1, batch_size=16):
 		#
-		# Takes input of X, a numpy array of shape (N, f) and y, a numpy array of shape (N, l)
+		# Takes input of X, a numpy array of shape (N, f) and y, a numpy array of shape (N, m)
 		#
-		# N is the number of training samples, f is the number of features per sample, and l is the number of values the output label could take
+		# N is the number of training samples 
+		# f is the size of the input layer and m is the size of the output layer, but these values aren't stored because we already have them in self.widths
 		#
-		
-		N, f = x.shape
-		l = y.shape[1]
-		rng = np.random.default_rng()
 
-		# initialize the weights (and biases) used in the network, each will start as a random number in the range [0, 1)
-		# 
-		# weights and biases will be kept in np arrays whos dimensions match the dimensions of their input and output vectors
-		self.weights = []
-		for i in range(depth):
-			input_size, output_size = self.width + 1, self.width
-			if i == 0:
-				input_size = f + 1
-			if i == self.depth - 1:
-				output_size = l
+		N = len(X)
 
-			tmp = rng.random((output_size, input_size))
-			self.weights.append(tmp)
+		for nepoch in range(nepoch):
+			print("Running epoch %s" % (nepoch))
+			# randomly shuffle the training data
+			samples = list(zip(X, y))
+			random.shuffle(samples)
 
-		# now that we have the initial weight matrices all generated randomly, we can begin training
-		for index in range(N):
-			dzdw = [ X[index] ]
-			for i in range(self.depth):
+			minibatches = [ samples[k:k+batch_size] for k in range(0, N, batch_size) ]
 
-				# calculate values at next layer and add to array containing dz/dw
-				tmp = sigmoid(self.weights[i][:,:-1] @ dzdw[i] + self.weights[i][:,-1])
-				dzdw.append(tmp)
-			
-			# backpropagation time
-			for i in reversed(range(self.depth)):
+			# for each training sample we run the training algorithm
+			for minibatch in minibatches:
+				# these will store the derivatives of C with respect to each weight and bias
+				grad_w = [ np.zeros(w.shape) for w in self.weights ]
+				grad_b = [ np.zeros(b.shape) for b in self.biases ]
+
+				for sample, label in minibatch:
+
+					a = [ sample ] # holds the value of the activation layer, needed for each successive layer and for backpropagation
+					z = [] # holds the value of the weighted output layer, needed for backpropagation
+
+					# feedforward while updating a, z
+					for w, b in zip(self.weights, self.biases):
+						# calculate a, z for each successive layer
+						z_i = w @ a[-1] + b
+						a_i = sigmoid(z_i)
+						a.append(a_i)
+						z.append(z_i)
+
+					# backpropagation time
+					delta = (a[-1] - label) * sigmoid_prime(z[-1])
+					grad_w[-1] = np.dot(delta, a[-2].T)
+					grad_b[-1] = delta
+
+					for i in range(2, self.depth):
+						delta = np.dot(self.weights[1-i].T, delta) * sigmoid_prime(z[-i])
+						grad_w[-i] += np.dot(delta, a[-i-1].T)
+						grad_b[-i] += delta
 				
+				# update self.weights and self.biases after each minibatch
+				self.weights = [ w - lr * d_w / batch_size for w, d_w in zip(self.weights, grad_w) ]
+				self.biases = [ b - lr * d_b / batch_size for b, d_b in zip(self.biases, grad_b) ]
 
-
-				
 	
 		
 
